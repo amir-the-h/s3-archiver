@@ -5,11 +5,11 @@ const Archiver = require('archiver');
 // get inputs from the user
 const bucket = process.argv[2];
 const directory = process.argv[3];
-const zipFileName = `${directory}.zip`
+const zipFileName = process.argv[4];
 
 // check the inputs
-if (!bucket || !directory) {
-  console.log('Useaage: npm run start <bucket> <directory>');
+if (!bucket || !directory || !zipFileName) {
+  console.log('Useaage: npm run start <bucket> <directory> <zipFileName>');
   process.exit(1);
 }
 

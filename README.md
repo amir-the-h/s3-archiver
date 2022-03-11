@@ -16,7 +16,7 @@ npm install
 
 ## Usage
 ```bash
-npm run start s3-archiver <bucket> <directory>
+npm run start <bucket> <directory>
 ```
 
 ## Result

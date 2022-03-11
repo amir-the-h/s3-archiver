@@ -23,4 +23,4 @@ npm run start <bucket> <directory> <zipFileName>
 ```
 
 ## Result
-The archive will be uploaded to the bucket root.
+The archive will be uploaded to the directory.

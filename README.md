@@ -19,7 +19,7 @@ Check the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configu
 
 ## Usage
 ```bash
-npm run start <bucket> <directory>
+npm run start <bucket> <directory> <zipFileName>
 ```
 
 ## Result

@@ -13,6 +13,9 @@ git clone https://github.com/amir-the-h/s3-archiver.git
 cd s3-archiver
 npm install
 ```
+- Configure the AWS credentials:
+Check the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html) for more information.
+
 
 ## Usage
 ```bash

@@ -16,7 +16,7 @@ if (!bucket || !directory || !zipFileName) {
 const uploadParams = {
   Bucket: bucket,
   ContentType: 'application/zip',
-  Key: zipFileName,
+  Key: directory + zipFileName,
 }
 let filesList = [];
 const uploadedFileParts = [];

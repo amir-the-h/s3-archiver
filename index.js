@@ -1,6 +1,7 @@
 const { S3 } = require('aws-sdk');
 const { PassThrough } = require('stream');
 const Archiver = require('archiver');
+const { resolve } = require('path');
 
 // get inputs from the user
 const bucket = process.argv[2];
@@ -29,8 +30,10 @@ const minUploadSize = 10485760; // 10 MB
 
 let totalFiles = 0;
 let archivedFiles = 0;
-let uploadDone = false;
+let uploadedParts = 0;
+let totalParts = 0;
 let upload = null;
+let finalized = false;
 
 const archive = Archiver('zip', {});
 
@@ -46,6 +49,7 @@ async function main() {
       if (archivedFiles === totalFiles) {
         console.log('All files processed');
         archive.finalize();
+        finalized = true;
       }
     });
 
@@ -57,17 +61,23 @@ async function main() {
   await getFilesList();
   console.log(`Found ${filesList.length} files`);
 
-  // Create a new download stream for the files
-  for (const fileKey of filesList) {
-    processFileObject(fileKey);
-  };
-
   console.log('Starting upload');
   startUpload()
   .then(() => {
-    uploadDone = true;
+    uploadedParts++;
   })
 
+  // Create a new download stream for the files in bacthes of 20
+  const tmp = filesList;
+  while (tmp.length > 0) {
+    fileKeys = tmp.splice(0, 20);
+    await processFileObject(fileKeys);
+  }
+
+  // wait for the upload to finish
+  while (!finalized) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
   console.log('Retrying failed parts');
   await retryFailedParts();
   console.log('Retry done');
@@ -99,19 +109,23 @@ async function getFilesList(marker) {
   }
 }
 
-async function processFileObject(fileKey) {
-  return new Promise((resolve, reject) => {
-    s3.getObject({ Bucket: bucket, Key: fileKey }).promise()
-      .then((data) => {
+async function processFileObject(fileKeys) {
+  return Promise.all(fileKeys.map(async (fileKey) => {
+    return await s3.getObject({
+      Bucket: bucket,
+      Key: fileKey,
+    })
+      .promise()
+      .then(data => {
         // Add the file to the archive
         archive.append(data.Body, { name: fileKey });
-        resolve();
+        return true;
       })
-      .catch((err) => {
+      .catch(err => {
         console.error(`Error getting file ${fileKey}`, err);
-        reject(err);
+        return false;
       });
-  });
+  }));
 }
 
 function createUpload() {
@@ -180,7 +194,7 @@ async function startUpload() {
 }
 
 async function retryFailedParts() {
-  while (!uploadDone || failedFileParts.length > 0) {
+  while (failedFileParts.length > 0) {
     for (const failedPart of failedFileParts) {
       if (failedPart.retry !== true) {
         failedPart.retry = true;

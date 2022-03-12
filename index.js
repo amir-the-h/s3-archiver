@@ -29,6 +29,7 @@ const minUploadSize = 10485760; // 10 MB
 
 let totalFiles = 0;
 let archivedFiles = 0;
+let uploadDone = false;
 let upload = null;
 
 const archive = Archiver('zip', {});
@@ -62,8 +63,10 @@ async function main() {
   };
 
   console.log('Starting upload');
-  await startUpload();
-  console.log('Upload done');
+  startUpload()
+  .then(() => {
+    uploadDone = true;
+  })
 
   console.log('Retrying failed parts');
   await retryFailedParts();
@@ -97,9 +100,18 @@ async function getFilesList(marker) {
 }
 
 async function processFileObject(fileKey) {
-  // Wait for the part to be uploaded
-  const object = await s3.getObject({ Bucket: bucket, Key: fileKey }).promise();
-  archive.append(object.Body, { name: fileKey });
+  return new Promise((resolve, reject) => {
+    s3.getObject({ Bucket: bucket, Key: fileKey }).promise()
+      .then((data) => {
+        // Add the file to the archive
+        archive.append(data.Body, { name: fileKey });
+        resolve();
+      })
+      .catch((err) => {
+        console.error(`Error getting file ${fileKey}`, err);
+        reject(err);
+      });
+  });
 }
 
 function createUpload() {
@@ -150,8 +162,8 @@ async function startUpload() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
+    console.log('All files processed');
     if (buffer.byteLength > 0) {
-      console.log('All files processed');
       uploadPart(buffer, partNumber)
         .then((part) => {
           uploadedFileParts.push(part);
@@ -168,7 +180,7 @@ async function startUpload() {
 }
 
 async function retryFailedParts() {
-  while (failedFileParts.length > 0) {
+  while (!uploadDone || failedFileParts.length > 0) {
     for (const failedPart of failedFileParts) {
       if (failedPart.retry !== true) {
         failedPart.retry = true;
